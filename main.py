@@ -4,13 +4,16 @@ import re
 import time
 import os
 from dotenv import load_dotenv
+import plotly.express as px
+import pandas as pd
+import pycountry
 
 load_dotenv()
 
 # === CONFIGURATION ===
 LETTERBOXD_USERNAME = os.getenv("LETTERBOXD_USERNAME")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
-MAX_FILMS = 10  # Limit number of films for demo (set None for unlimited)
+MAX_FILMS = 3  # Limit number of films for demo (set None for unlimited)
 
 if not LETTERBOXD_USERNAME or not TMDB_API_KEY:
     raise ValueError("Missing LETTERBOXD_USERNAME or TMDB_API_KEY in .env file")
@@ -54,11 +57,65 @@ def get_country_for_film(title):
 # === STEP 4: Print film list with countries ===
 print(f"Watched films for: {LETTERBOXD_USERNAME}\n")
 
+watched_countries = []
 for title in film_titles:
     try:
         countries = get_country_for_film(title)
-        print(countries)
+        watched_countries.extend(countries)
         print(f"{title} — {', '.join(countries)}")
         time.sleep(0.5)  # Be polite to TMDB servers
     except Exception as e:
         print(f"{title} — [Error: {e}]")
+
+print(watched_countries)
+# deduplicate list and convert to dictionary
+watched_countries = list(dict.fromkeys(watched_countries))
+
+# === Step 2: Convert country names to ISO Alpha-3 codes ===
+def get_iso3(country_name):
+    try:
+        return pycountry.countries.lookup(country_name).alpha_3
+    except LookupError:
+        print(f"Warning: Could not match '{country_name}' to ISO code")
+        return None
+
+# All ISO country codes for reference
+all_countries = [country.name for country in pycountry.countries]
+country_data = []
+
+for country_name in all_countries:
+    iso3 = get_iso3(country_name)
+    if iso3:
+        watched = country_name in watched_countries
+        country_data.append({
+            "country": country_name,
+            "iso_alpha": iso3,
+            "watched": watched
+        })
+
+df = pd.DataFrame(country_data)
+
+# check which countries are missing from pycountry list
+missing = [c for c in watched_countries if get_iso3(c) is None]
+print("Unmatched country names:", missing)
+
+
+# === Step 3: Plot with Plotly ===
+fig = px.choropleth(
+    df,
+    locations="iso_alpha",
+    color="watched",
+    hover_name="country",
+    color_discrete_map={True: "red", False: "lightgray"},
+    title="Countries of Origin for Watched Films"
+)
+
+fig.update_layout(
+    geo=dict(
+        showframe=False,
+        showcoastlines=False,
+        projection_type="natural earth"
+    ),
+)
+
+fig.show()
