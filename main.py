@@ -33,7 +33,6 @@ for entry in feed.entries:
     if MAX_FILMS and len(film_titles) >= MAX_FILMS:
         break
 
-print(film_titles)
 # === STEP 3: Query TMDB API for country info ===
 def get_country_for_film(title):
     search_url = "https://api.themoviedb.org/3/search/movie"
@@ -67,9 +66,13 @@ for title in film_titles:
     except Exception as e:
         print(f"{title} — [Error: {e}]")
 
-print(watched_countries)
-# deduplicate list and convert to dictionary
+# deduplicate list
 watched_countries = list(dict.fromkeys(watched_countries))
+
+# change United States of America to United States
+# this is because pycountry uses 'United States'
+watched_countries[watched_countries.index('United States of America')] = 'United States'
+print(watched_countries)
 
 # === Step 2: Convert country names to ISO Alpha-3 codes ===
 def get_iso3(country_name):
@@ -94,11 +97,6 @@ for country_name in all_countries:
         })
 
 df = pd.DataFrame(country_data)
-
-# check which countries are missing from pycountry list
-missing = [c for c in watched_countries if get_iso3(c) is None]
-print("Unmatched country names:", missing)
-
 
 # === Step 3: Plot with Plotly ===
 fig = px.choropleth(
