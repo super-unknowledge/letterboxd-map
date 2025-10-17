@@ -58,8 +58,6 @@ def get_country_for_film(title):
 # Create dictionary with country as key, list of films as value
 country_to_films = defaultdict(list)
 
-print(f"Watched films for: {LETTERBOXD_USERNAME}\n")
-
 for title in film_titles:
     try:
         countries = get_country_for_film(title)
@@ -74,5 +72,50 @@ for title in film_titles:
 country_to_films = dict(country_to_films)
 
 # Example output
-for country, films in country_to_films.items():
-    print(f"{country}: {films}")
+#for country_iso, films in country_to_films.items():
+#    print(f"{country_iso}: {films}")
+
+# === STEP 2: Convert country names to ISO Alpha-3 codes ===
+# tmdb uses iso2 but plotly needs iso3
+def get_iso3(iso2):
+    try:
+        return pycountry.countries.get(alpha_2=iso2).alpha_3
+    except LookupError:
+        print(f"Warning: Could not match '{country_name}' to ISO code")
+        return None
+
+rows = []
+for country_iso, films in country_to_films.items():
+    iso = get_iso3(country_iso)
+    if iso:
+        rows.append({
+            "country": country_iso,
+            "iso_alpha": iso,
+            "film_count": len(films),
+            "film_list": ",<br>".join(films)  # HTML line breaks for tooltip
+        })
+
+df = pd.DataFrame(rows)
+
+# === STEP 3: Plotly choropleth ===
+fig = px.choropleth(
+    df,
+    locations="iso_alpha",
+    color="film_count",
+    hover_name="country",
+    hover_data={"film_list": True, "film_count": True, "iso_alpha": False},
+    color_continuous_scale="Blues",
+    title=f"Countries of Origin for {LETTERBOXD_USERNAME}'s Watched Films"
+)
+
+fig.update_layout(
+    geo=dict(
+        showframe=False,
+        showcoastlines=False,
+        projection_type="natural earth"
+    ),
+    coloraxis_showscale=False  # Remove numeric scale
+)
+
+fig.show()
+
