@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import plotly.express as px
 import pandas as pd
 import pycountry
+from collections import defaultdict
 
 load_dotenv()
 
@@ -53,49 +54,25 @@ def get_country_for_film(title):
 
     return [c for c in countries] if countries else ["Unknown"]
 
-# === STEP 4: Print film list with countries ===
+# === STEP 4: Create list of films per country ===
+# Create dictionary with country as key, list of films as value
+country_to_films = defaultdict(list)
+
 print(f"Watched films for: {LETTERBOXD_USERNAME}\n")
 
 for title in film_titles:
     try:
         countries = get_country_for_film(title)
         print(f"{title} — {', '.join(countries)}")
+        for country in countries:
+            country_to_films[country].append(title)
         time.sleep(0.5)  # Be polite to TMDB servers
     except Exception as e:
         print(f"{title} — [Error: {e}]")
 
-# === Step 2: Convert country names to ISO Alpha-3 codes ===
-# All ISO country codes for reference
-all_countries = [country.name for country in pycountry.countries]
-country_data = []
+# Convert to regular dict
+country_to_films = dict(country_to_films)
 
-for country_name in all_countries:
-    if iso3:
-        watched = country_name in watched_countries
-        country_data.append({
-            "country": country_name,
-            "iso_alpha": iso3,
-            "watched": watched
-        })
-
-df = pd.DataFrame(country_data)
-
-# === Step 3: Plot with Plotly ===
-fig = px.choropleth(
-    df,
-    locations="iso_alpha",
-    color="watched",
-    hover_name="country",
-    color_discrete_map={True: "red", False: "lightgray"},
-    title="Countries of Origin for Watched Films"
-)
-
-fig.update_layout(
-    geo=dict(
-        showframe=False,
-        showcoastlines=False,
-        projection_type="natural earth"
-    ),
-)
-
-fig.show()
+# Example output
+for country, films in country_to_films.items():
+    print(f"{country}: {films}")
