@@ -49,45 +49,27 @@ def get_country_for_film(title):
     movie_id = results[0]["id"]
     r = requests.get(details_url.format(movie_id), params={"api_key": TMDB_API_KEY})
     data = r.json()
-    countries = data.get("production_countries", [])
+    countries = data.get("origin_country", [])
 
-    return [c["name"] for c in countries] if countries else ["Unknown"]
+    return [c for c in countries] if countries else ["Unknown"]
 
 # === STEP 4: Print film list with countries ===
 print(f"Watched films for: {LETTERBOXD_USERNAME}\n")
 
-watched_countries = []
 for title in film_titles:
     try:
         countries = get_country_for_film(title)
-        watched_countries.extend(countries)
         print(f"{title} — {', '.join(countries)}")
         time.sleep(0.5)  # Be polite to TMDB servers
     except Exception as e:
         print(f"{title} — [Error: {e}]")
 
-# deduplicate list
-watched_countries = list(dict.fromkeys(watched_countries))
-
-# change United States of America to United States
-# this is because pycountry uses 'United States'
-watched_countries[watched_countries.index('United States of America')] = 'United States'
-print(watched_countries)
-
 # === Step 2: Convert country names to ISO Alpha-3 codes ===
-def get_iso3(country_name):
-    try:
-        return pycountry.countries.lookup(country_name).alpha_3
-    except LookupError:
-        print(f"Warning: Could not match '{country_name}' to ISO code")
-        return None
-
 # All ISO country codes for reference
 all_countries = [country.name for country in pycountry.countries]
 country_data = []
 
 for country_name in all_countries:
-    iso3 = get_iso3(country_name)
     if iso3:
         watched = country_name in watched_countries
         country_data.append({
